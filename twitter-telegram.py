@@ -3,20 +3,25 @@ import telepot
 import tweepy
 import logging 
 import config
+from IPython import embed
+from socket import error as SocketError
+import errno
 
 
 def telegram_alert(tweet, bot):
-    text = tweet.text + " " + tweet.entities['urls'][0]['url']
-    bot.sendMessage( tweet.text + " " + tweet.entities['urls'][0]['url'])
-    logging.info("PUBLICADO     " + text)
+    try:
+        bot.sendMessage(config.group_id, tweet.text)
+    except SocketError as e:
+        if e.errno != errno.ECONNRESET:
+            raise
+        pass
+    logging.info("PUBLICADO     " + tweet.text)
 
 def setup():
     token = config.token
     bot = telepot.Bot(token)
     logging.info(bot.getMe())
     return bot
-
-
 
 if __name__ == "__main__":
     try:
@@ -31,11 +36,12 @@ if __name__ == "__main__":
         logging.info("Ref tweet id: " + str(ref_tweet.id))
 
         while 1:
-            sleep(config.sleep)
+            time.sleep(config.sleep)
             tweets = api.user_timeline(config.user)
-            if ref_tweet != tweets[0]:
-                telegram_alert(tweets[0], bot)
-                ref_tweet = tweets[0]
+            last_tweet = tweets[0]
+            if ref_tweet != last_tweet:
+                telegram_alert(last_tweet, bot)
+                ref_tweet = last_tweet
             pass
     except Exception as e:
         logging.error(str(e))
